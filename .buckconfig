@@ -5,7 +5,7 @@
   google = https://maven.google.com/
 
 [ndk]
-  ndk_version = 15.2.4203891
+  ndk_version = 18.1.5063045
   compiler = clang
   app_platform = android-24
   cpu_abis = arm64, armv7, x86, x86_64
