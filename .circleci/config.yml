@@ -87,7 +87,7 @@ aliases:
 
   - &setup-emulator
     name: Set up emulator
-    command: avdmanager create avd -n test -k "system-images;android-26;google_apis;x86_64"
+    command: avdmanager create avd -n test -k "system-images;android-28;google_apis;x86_64"
 
   - &start-emulator
     name: Start emulator
