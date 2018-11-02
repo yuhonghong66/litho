@@ -85,6 +85,25 @@ aliases:
     name: Set up BUCK
     command: echo "export PATH=$HOME/litho-working-dir/workspace/buck/bin:$PATH" >> $BASH_ENV
 
+  - &setup-emulator
+    name: Set up emulator
+    command: avdmanager create avd -n test -k "system-images;android-26;google_apis;x86_64"
+
+  - &start-emulator
+    name: Start emulator
+    command: export LD_LIBRARY_PATH=${ANDROID_HOME}/emulator/lib64:${ANDROID_HOME}/emulator/lib64/qt/lib && echo "no" | emulator -avd test -noaudio -no-boot-anim -no-window -accel auto -verbose
+    background: true
+
+  - &wait-emulator
+    name: Wait for emulator to boot
+    command: |
+      # wait for it to have booted
+      circle-android wait-for-boot
+      # not sure why this is necessary - I'm just doing what I'm told
+      sleep 30
+      # unlock the screen
+      adb shell input keyevent 82
+
   # Setup KEY
   - &setup-keys
     name: Set up keys
@@ -163,6 +182,13 @@ commands:
       - restore_cache: *restore-cache-android-packages
       - run: *setup-buck
 
+  prepare_emulator:
+    description: "Start up an emulator and wait for it to become ready"
+    steps:
+      - run: *setup-emulator
+      - run: *start-emulator
+      - run: *wait-emulator
+
   buck_build:
     description: "A command that uses BUCK for builds"
     parameters:
@@ -189,6 +215,20 @@ commands:
           command: |
             cd workspace/repo
             ./gradlew :<<parameters.module_name>>:assembleDebug --no-daemon --max-workers 2
+
+  gradle_connected_test:
+    description: "A command that runs an instrumentation test on an emulator"
+    parameters:
+      module_name:
+        type: string
+    steps:
+      - attach_restore_setup_buck
+      - prepare_emulator
+      - run:
+          name: Test <<parameters.module_name>> with Gradle on a connected device
+          command: |
+            cd workspace/repo
+            ./gradlew :<<parameters.module_name>>:connectedAndroidTest --no-daemon --max-workers 2
 
   buck_tests:
     description: "A command that runs tests using BUCK"
@@ -278,6 +318,12 @@ jobs:
       - gradle_build:
           module_name: "sample-kotlin"
 
+  gradle_sample_instrumentation_tests_run:
+    executor: litho-executor
+    steps:
+      - gradle_connected_test:
+          module_name: "sample"
+
   buck_litho_it_tests_run:
     executor: litho-executor
     steps:
@@ -341,6 +387,9 @@ workflows:
           requires:
             - build
       - gradle_tests_run:
+          requires:
+            - build
+      - gradle_sample_instrumentation_tests_run:
           requires:
             - build
       - publish_snapshot:
